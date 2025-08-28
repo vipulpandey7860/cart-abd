@@ -2,12 +2,13 @@
 
 client_id = "0c1de975d817411f75f016d10e27c709"
 name = "cart-abd"
-application_url = "https://example.com/"
+application_url = "https://83ac3d6853bf.ngrok-free.app"
 embedded = true
 handle = "cart-abd"
 
 [build]
 include_config_on_deploy = true
+automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2025-07"
@@ -17,15 +18,15 @@ api_version = "2025-07"
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+  topics = [ "carts/create" ]
+  uri = "/webhooks/carts/create"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products"
+scopes = "write_products,read_orders"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = ["https://83ac3d6853bf.ngrok-free.app/auth/callback", "https://83ac3d6853bf.ngrok-free.app/auth/shopify/callback", "https://83ac3d6853bf.ngrok-free.app/api/auth/callback"]
 
 [pos]
 embedded = false

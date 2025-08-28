@@ -13,6 +13,8 @@
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate deploy",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
+    "queue-worker": "node scripts/queue-worker.js",
+    "aging-worker": "node scripts/cart-aging-worker.js",
     "shopify": "shopify",
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
@@ -23,7 +25,10 @@
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.2.1",
+    "@aws-sdk/client-sqs": "^3.876.0",
+    "@libsql/client": "^0.15.14",
+    "@prisma/adapter-libsql": "^6.15.0",
+    "@prisma/client": "^6.15.0",
     "@remix-run/dev": "^2.16.1",
     "@remix-run/fs-routes": "^2.16.1",
     "@remix-run/node": "^2.16.1",

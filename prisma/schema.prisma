@@ -1,16 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
-  url      = "file:dev.sqlite"
+  url      = "file:./dev.db"
 }
 
 model Session {
@@ -29,4 +24,23 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+}
+
+model Cart {
+  id          String      @id
+  token       String      @unique
+  createdAt   DateTime
+  payload     String      // Complete webhook payload as JSON
+  processed   Boolean     @default(false)
+  status      CartStatus?
+  processedAt DateTime?
+  
+  @@index([createdAt])
+  @@index([processed])
+  @@index([createdAt, processed])
+}
+
+enum CartStatus {
+  ABANDONED
+  RECOVERED
 }
