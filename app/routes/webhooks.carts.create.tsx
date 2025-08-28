@@ -4,31 +4,33 @@ import { sendWebhookToSQS } from "../utils/sqs";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   try {
-    const { payload, session, topic, shop } = await authenticate.webhook(request);
+    const { payload, session, topic, shop } =
+      await authenticate.webhook(request);
     console.log(`Received ${topic} webhook for ${shop}`);
-    console.log("payload",payload)
-    
+    console.log("payload", payload);
+
     // const headers = Object.fromEntries(request.headers.entries());
     // console.log('Request headers:', headers);
-    
+
+    // might need to implement dupicate webhook detection
     if (session) {
       const messageId = await sendWebhookToSQS({
-        payload: {shop, ...payload},
+        payload: { shop, ...payload },
+        timestamp: payload.created_at,
+        shop,
       });
-      
+
       console.log(`Webhook queued successfully with message ID: ${messageId}`);
     } else {
-      console.warn('No session found, webhook not queued');
+      console.warn("No session found, webhook not queued");
     }
-    
+
     return new Response(null, { status: 200 });
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error("Error processing webhook:", error);
     return new Response(null, { status: 500 });
   }
 };
-
-
 
 // fetch('/cart.js')
 //   .then(response => response.json())

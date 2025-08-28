@@ -10,6 +10,8 @@ const sqsClient = new SQSClient({
 
 export interface WebhookMessage {
   payload: any;
+  timestamp: string;
+  shop:string
 }
 
 export async function sendWebhookToSQS(message: WebhookMessage): Promise<string | undefined> {
@@ -19,10 +21,16 @@ export async function sendWebhookToSQS(message: WebhookMessage): Promise<string 
     if (!queueUrl) {
       throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
     }
+    // might have to find a better logic to handle more unique values maybe generate a random hash
+    const deduplicationId = Buffer.from(`${message.shop}-${message.timestamp}`).toString('base64').slice(0, 128);
 
     const command = new SendMessageCommand({
       QueueUrl: queueUrl,
-      MessageBody: JSON.stringify(message.payload),
+      MessageBody: JSON.stringify({
+        payload: message.payload,
+      }),
+      MessageGroupId: "webhook-group",
+      MessageDeduplicationId: deduplicationId,
     });
 
     const response = await sqsClient.send(command);
