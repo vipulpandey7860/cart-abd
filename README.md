@@ -22,3 +22,24 @@ Issues I faced - getting customer data (I still didn't get it)
  
 
 I also explored other webhook like checkouts/create, this indeed gives us the customer email (but this might not be super useful as shopify itself have abandoned checkouts feature) but we might be able to get data from here by matching cart token
+
+
+=================================================================================
+what can be improved in this arch-
+
+1. Webhook → SQS
+
+2. SQS → Lambda 
+SQS triggers Lambda → Save cart to DB (will have to switch to Dynamo DB to auto scale or have to use prisma accelerate to manage connection pools (in SQLITE or Postgress) (db throughput might be high thus dynamoDB works))
+(Debatable but I think this will work)
+
+3. EventBridge (Waits 4 hours)
+EventBridge waits exactly 4 hours → Triggers abandonment check Lambda
+
+4. Check Cart Status
+Lambda checks Shopify API → Is cart abandoned?
+
+5a. If Abandoned: SNS → Email Lambda
+Mark as abandoned in DB → Send to SNS → Email Lambda sends email
+5b. Email Lambda Schedules Follow-ups
+Email Lambda → Schedule next email via EventBridge (24 hours later)
