@@ -1,4 +1,4 @@
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 
 const sqsClient = new SQSClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -10,8 +10,7 @@ const sqsClient = new SQSClient({
 
 export interface WebhookMessage {
   payload: any;
-  timestamp: string;
-  shop:string
+  eventId: string;
 }
 
 export async function sendWebhookToSQS(message: WebhookMessage): Promise<string | undefined> {
@@ -21,8 +20,8 @@ export async function sendWebhookToSQS(message: WebhookMessage): Promise<string 
     if (!queueUrl) {
       throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
     }
-    // might have to find a better logic to handle more unique values maybe generate a random hash
-    const deduplicationId = Buffer.from(`${message.shop}-${message.timestamp}`).toString('base64').slice(0, 128);
+    // Use X-Shopify-Event-Id for deduplication if available, otherwise fallback to shop-timestamp
+    const deduplicationId = Buffer.from(message.eventId).toString('base64').slice(0, 128)
 
     const command = new SendMessageCommand({
       QueueUrl: queueUrl,
@@ -38,6 +37,49 @@ export async function sendWebhookToSQS(message: WebhookMessage): Promise<string 
     return response.MessageId;
   } catch (error) {
     console.error('Failed to send message to SQS:', error);
+    throw error;
+  }
+}
+
+export async function receiveWebhookFromSQS(): Promise<any[]> {
+  try {
+    const queueUrl = process.env.SQS_WEBHOOK_QUEUE_URL;
+    
+    if (!queueUrl) {
+      throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
+    }
+
+    const command = new ReceiveMessageCommand({
+      QueueUrl: queueUrl,
+      MaxNumberOfMessages: 10,
+      WaitTimeSeconds: 20,
+      MessageAttributeNames: ['All'],
+    });
+
+    const response = await sqsClient.send(command);
+    return response.Messages || [];
+  } catch (error) {
+    console.error('Failed to receive messages from SQS:', error);
+    throw error;
+  }
+}
+
+export async function deleteWebhookFromSQS(receiptHandle: string): Promise<void> {
+  try {
+    const queueUrl = process.env.SQS_WEBHOOK_QUEUE_URL;
+    
+    if (!queueUrl) {
+      throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
+    }
+
+    const command = new DeleteMessageCommand({
+      QueueUrl: queueUrl,
+      ReceiptHandle: receiptHandle,
+    });
+
+    await sqsClient.send(command);
+  } catch (error) {
+    console.error('Failed to delete message from SQS:', error);
     throw error;
   }
 }

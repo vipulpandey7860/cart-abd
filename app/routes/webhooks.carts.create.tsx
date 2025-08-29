@@ -9,15 +9,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log(`Received ${topic} webhook for ${shop}`);
     console.log("payload", payload);
 
-    // const headers = Object.fromEntries(request.headers.entries());
-    // console.log('Request headers:', headers);
+    // Extract X-Shopify-Event-Id for duplicate prevention or fallback
+    const shopifyEventId = request.headers.get('X-Shopify-Event-Id') || shop + payload.timestamp
 
-    // might need to implement dupicate webhook detection
+    console.log('X-Shopify-Event-Id:', shopifyEventId);
     if (session) {
       const messageId = await sendWebhookToSQS({
         payload: { shop, ...payload },
-        timestamp: payload.created_at,
-        shop,
+        eventId: shopifyEventId,
       });
 
       console.log(`Webhook queued successfully with message ID: ${messageId}`);
