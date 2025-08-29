@@ -1,11 +1,19 @@
-import { SQSClient, SendMessageCommand, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import {
+  SQSClient,
+  SendMessageCommand,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+} from "@aws-sdk/client-sqs";
 
 const sqsClient = new SQSClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  } : undefined,
+  region: process.env.AWS_REGION || "us-east-1",
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined,
 });
 
 export interface WebhookMessage {
@@ -13,15 +21,42 @@ export interface WebhookMessage {
   eventId: string;
 }
 
-export async function sendWebhookToSQS(message: WebhookMessage): Promise<string | undefined> {
+export interface SimpleProduct {
+  title: string;
+  price: string;
+  currencyCode: string;
+  quantity: number;
+  imageUrl?: string;
+}
+
+export interface MailMessage {
+  cartId: string;
+  customerEmail: string;
+  shop: string;
+  cartToken: string;
+  checkoutUrl: string;
+  products: SimpleProduct[];
+  totalProducts: number;
+  totalAmount: {
+    amount: string;
+    currencyCode: string;
+  };
+  abandonedAt: Date;
+}
+
+export async function sendWebhookToSQS(
+  message: WebhookMessage,
+): Promise<string | undefined> {
   try {
     const queueUrl = process.env.SQS_WEBHOOK_QUEUE_URL;
-    
+
     if (!queueUrl) {
-      throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
+      throw new Error("SQS_WEBHOOK_QUEUE_URL environment variable is not set");
     }
     // Use X-Shopify-Event-Id for deduplication if available, otherwise fallback to shop-timestamp
-    const deduplicationId = Buffer.from(message.eventId).toString('base64').slice(0, 128)
+    const deduplicationId = Buffer.from(message.eventId)
+      .toString("base64")
+      .slice(0, 128);
 
     const command = new SendMessageCommand({
       QueueUrl: queueUrl,
@@ -36,7 +71,7 @@ export async function sendWebhookToSQS(message: WebhookMessage): Promise<string 
     console.log(`Message sent to SQS: ${response.MessageId}`);
     return response.MessageId;
   } catch (error) {
-    console.error('Failed to send message to SQS:', error);
+    console.error("Failed to send message to SQS:", error);
     throw error;
   }
 }
@@ -44,32 +79,34 @@ export async function sendWebhookToSQS(message: WebhookMessage): Promise<string 
 export async function receiveWebhookFromSQS(): Promise<any[]> {
   try {
     const queueUrl = process.env.SQS_WEBHOOK_QUEUE_URL;
-    
+
     if (!queueUrl) {
-      throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
+      throw new Error("SQS_WEBHOOK_QUEUE_URL environment variable is not set");
     }
 
     const command = new ReceiveMessageCommand({
       QueueUrl: queueUrl,
       MaxNumberOfMessages: 10,
       WaitTimeSeconds: 20,
-      MessageAttributeNames: ['All'],
+      MessageAttributeNames: ["All"],
     });
 
     const response = await sqsClient.send(command);
     return response.Messages || [];
   } catch (error) {
-    console.error('Failed to receive messages from SQS:', error);
+    console.error("Failed to receive messages from SQS:", error);
     throw error;
   }
 }
 
-export async function deleteWebhookFromSQS(receiptHandle: string): Promise<void> {
+export async function deleteWebhookFromSQS(
+  receiptHandle: string,
+): Promise<void> {
   try {
     const queueUrl = process.env.SQS_WEBHOOK_QUEUE_URL;
-    
+
     if (!queueUrl) {
-      throw new Error('SQS_WEBHOOK_QUEUE_URL environment variable is not set');
+      throw new Error("SQS_WEBHOOK_QUEUE_URL environment variable is not set");
     }
 
     const command = new DeleteMessageCommand({
@@ -79,7 +116,82 @@ export async function deleteWebhookFromSQS(receiptHandle: string): Promise<void>
 
     await sqsClient.send(command);
   } catch (error) {
-    console.error('Failed to delete message from SQS:', error);
+    console.error("Failed to delete message from SQS:", error);
+    throw error;
+  }
+}
+
+export async function sendMailToSQS(
+  message: MailMessage,
+): Promise<string | undefined> {
+  try {
+    const queueUrl = process.env.SQS_MAIL_QUEUE_URL;
+
+    if (!queueUrl) {
+      throw new Error("SQS_MAIL_QUEUE_URL environment variable is not set");
+    }
+
+    const deduplicationId = Buffer.from(
+      `${message.cartId}-${message.abandonedAt.getTime()}`,
+    )
+      .toString("base64")
+      .slice(0, 128);
+
+    const command = new SendMessageCommand({
+      QueueUrl: queueUrl,
+      MessageBody: JSON.stringify(message),
+      MessageGroupId: "mail-group",
+      MessageDeduplicationId: deduplicationId,
+    });
+
+    const response = await sqsClient.send(command);
+    console.log(`Mail message sent to SQS: ${response.MessageId}`);
+    return response.MessageId;
+  } catch (error) {
+    console.error("Failed to send mail message to SQS:", error);
+    throw error;
+  }
+}
+
+export async function receiveMailFromSQS(): Promise<any[]> {
+  try {
+    const queueUrl = process.env.SQS_MAIL_QUEUE_URL;
+
+    if (!queueUrl) {
+      throw new Error("SQS_MAIL_QUEUE_URL environment variable is not set");
+    }
+
+    const command = new ReceiveMessageCommand({
+      QueueUrl: queueUrl,
+      MaxNumberOfMessages: 10,
+      WaitTimeSeconds: 20,
+      MessageAttributeNames: ["All"],
+    });
+
+    const response = await sqsClient.send(command);
+    return response.Messages || [];
+  } catch (error) {
+    console.error("Failed to receive mail messages from SQS:", error);
+    throw error;
+  }
+}
+
+export async function deleteMailFromSQS(receiptHandle: string): Promise<void> {
+  try {
+    const queueUrl = process.env.SQS_MAIL_QUEUE_URL;
+
+    if (!queueUrl) {
+      throw new Error("SQS_MAIL_QUEUE_URL environment variable is not set");
+    }
+
+    const command = new DeleteMessageCommand({
+      QueueUrl: queueUrl,
+      ReceiptHandle: receiptHandle,
+    });
+
+    await sqsClient.send(command);
+  } catch (error) {
+    console.error("Failed to delete mail message from SQS:", error);
     throw error;
   }
 }

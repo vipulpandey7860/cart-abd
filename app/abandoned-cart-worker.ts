@@ -2,6 +2,7 @@ import "dotenv/config";
 import prisma from "./db.server";
 import { getCartById } from "./graphql/queries/getCartById";
 import { unauthenticated } from "./shopify.server";
+import { sendMailToSQS, type MailMessage } from "./utils/sqs";
 
 const POLL_INTERVAL = 30000; // 30 seconds
 const CART_ABANDONMENT_SECONDS = parseInt(
@@ -10,7 +11,6 @@ const CART_ABANDONMENT_SECONDS = parseInt(
 
 async function checkCartExistsInShopify(cartId: string, shop: string) {
   try {
-    // another approach could have been using admin api and fetching if order was created with this cart token, but I think we might hit the rate limit if we are processing lot of order, storefront being more relaible
     const { storefront } = await unauthenticated.storefront(shop);
 
     const response = await storefront.graphql(getCartById, {
@@ -80,7 +80,7 @@ async function processAbandonedCarts() {
           );
         } else {
           // Cart still exists, mark as abandoned
-          await prisma.cart.update({
+          const updatedCart = await prisma.cart.update({
             where: { id: cart.id },
             data: {
               status: "ABANDONED",
@@ -89,6 +89,46 @@ async function processAbandonedCarts() {
             },
           });
           console.log(`Cart ${cart.token} marked as abandoned`);
+
+          // Extract customer email from the cart data
+          const cartData = cartExists.cart;
+
+          // Extract first 2 products with simplified data
+          const simplifiedProducts = cartData.lines.edges
+            .slice(0, 2)
+            .map(({ node }: any) => ({
+              title: node.merchandise.product.title,
+              price: node.merchandise.price.amount,
+              currencyCode: node.merchandise.price.currencyCode,
+              quantity: node.quantity,
+              imageUrl: node.merchandise.product.featuredImage?.url,
+            }));
+
+          // Send to mail queue
+          const mailMessage: MailMessage = {
+            cartId: cart.id,
+            customerEmail:
+              cartData?.buyerIdentity?.customer?.email ||
+              cartData?.buyerIdentity?.email ||
+              "vipulpandey7860@gmail.com",
+            shop,
+            cartToken: cart.token,
+            checkoutUrl: cartData.checkoutUrl,
+            abandonedAt: updatedCart.processedAt || new Date(),
+            products: simplifiedProducts,
+            totalProducts: cartData.lines.edges.length,
+            totalAmount: cartData.cost.totalAmount,
+          };
+
+          try {
+            await sendMailToSQS(mailMessage);
+            console.log(`Mail message sent for abandoned cart ${cart.token}`);
+          } catch (error) {
+            console.error(
+              `Failed to send mail message for cart ${cart.token}:`,
+              error,
+            );
+          }
         }
       }
     } else {
@@ -102,7 +142,9 @@ async function processAbandonedCarts() {
 async function startAbandonedCartWorker() {
   console.log("Starting abandoned cart worker...");
   console.log(`Polling interval: ${POLL_INTERVAL}ms`);
-  console.log(`Cart abandonment threshold: ${CART_ABANDONMENT_SECONDS} seconds`);
+  console.log(
+    `Cart abandonment threshold: ${CART_ABANDONMENT_SECONDS} seconds`,
+  );
 
   // Process immediately on start
   await processAbandonedCarts();

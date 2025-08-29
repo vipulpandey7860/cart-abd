@@ -7,9 +7,16 @@ What i am trying to do
     - why am I using storefront insted if admin, I think admin might rate limit us and that can affect main app, storefront being non ratelimited.
 
 
+5. After checking I update the db and send an entry in new queue, that will be used to send mails (I am still using SQS but can use SNS too)
+ - A worker is setup for this queue which sends the email
+
+6. I have another woker, which checks the processed cart that are abandoned and check if it got converted or not. 
+
+
 Issues I faced - getting customer data (I still didn't get it)
 
 1. what I tried - looking in docs i found i need key attribute with id to get the customer data, but key is not in webhook payload
  - key can be found using sending /cart.js request in same session where cart was created (not possible to do from server)
  - Tried to update the cart (that webhook gave) but we need key here too.
+ - Or we need customer access token
  
