@@ -1,8 +1,8 @@
 import "dotenv/config";
-import prisma from "./db.server";
-import { getCartById } from "./graphql/queries/getCartById";
-import { unauthenticated } from "./shopify.server";
-import { sendMailToSQS, type MailMessage } from "./utils/sqs";
+import { getCartById } from "../graphql/queries/getCartById";
+import { unauthenticated } from "../shopify.server";
+import { sendMailToSQS, type MailMessage } from "../utils/sqs";
+import prisma from "app/db.server";
 
 const POLL_INTERVAL = 30000; // 30 seconds
 const CART_ABANDONMENT_SECONDS = parseInt(

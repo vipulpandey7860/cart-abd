@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { receiveWebhookFromSQS, deleteWebhookFromSQS } from './utils/sqs';
-import prisma from './db.server';
+import { receiveWebhookFromSQS, deleteWebhookFromSQS } from '../utils/sqs';
+import prisma from '../db.server';
 
 const POLL_INTERVAL = 5000; // 5 seconds
 

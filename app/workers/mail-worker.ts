@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { Resend } from 'resend';
-import { receiveMailFromSQS, deleteMailFromSQS, type MailMessage } from "./utils/sqs";
-import { generateAbandonedCartEmailHTML } from "./utils/email-templates";
+import { receiveMailFromSQS, deleteMailFromSQS, type MailMessage } from "../utils/sqs";
+import { generateAbandonedCartEmailHTML } from "../utils/email-templates";
 
 const POLL_INTERVAL = 15000; // 15 seconds
 

@@ -10,7 +10,7 @@ What i am trying to do
 5. After checking I update the db and send an entry in new queue, that will be used to send mails (I am still using SQS but can use SNS too)
  - A worker is setup for this queue which sends the email
 
-6. I have another woker, which checks the processed cart that are abandoned and check if it got converted or not. 
+6. To check conversions we can have 1 more worker which will get the abandoned orders from db and again fetch them and determine if it was converted (shopify usually delets unprocessed carts in 14 days (or 30 some say it got increased in winter 25 update))
 
 
 Issues I faced - getting customer data (I still didn't get it)
@@ -20,3 +20,5 @@ Issues I faced - getting customer data (I still didn't get it)
  - Tried to update the cart (that webhook gave) but we need key here too.
  - Or we need customer access token
  
+
+I also explored other webhook like checkouts/create, this indeed gives us the customer email (but this might not be super useful as shopify itself have abandoned checkouts feature) but we might be able to get data from here by matching cart token
